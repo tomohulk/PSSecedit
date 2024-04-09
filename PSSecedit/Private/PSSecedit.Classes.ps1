@@ -34,6 +34,11 @@ Class SeceditObject {
 
     [System.String[]]GetValue([System.String]$Property, [SeceditArea]$Area) {
         $content = Get-Content -Path $this.ExportSdb($Area)
-        return ((($content | Select-String $Property).Line.Split("=").Trim() | Select-Object -Last 1) -split "," | %{ $_.Trim()})
+        return ((($content | Select-String $Property).Line.Split("=").Trim() | Select-Object -Last 1) -split "," | Foreach-Object { $_.Trim()})
+    }
+
+    [SeceditObject]SetValue([System.String]$Property, [System.String[]]$Value, [SeceditArea]$Area) {
+        $content = Get-Content -Path $this.ExportSdb($Area)
+        return ([SeceditObject]::new($Property, $Area))
     }
 }
