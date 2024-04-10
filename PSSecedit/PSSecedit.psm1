@@ -17,6 +17,6 @@ foreach ($path in $paths) {
 
 foreach ($value in ([SeceditUserRights].GetEnumNames())) {
     Set-Content "Function:Get-$value" -Value '[SeceditObject]::new($MyInvocation.MyCommand.Noun, "USER_RIGHTS")'
-    Set-Content "Function:Set-$value" -Value 'param ([String[]]$Value) SeceditObject]::SetValue($MyInvocation.MyCommand.Noun, $Value, "USER_RIGHTS")'
+    Set-Content "Function:Set-$value" -Value 'param ([String[]]$Value) ([SeceditObject]::new($MyInvocation.MyCommand.Noun, "USER_RIGHTS")).SetValue($Value)'
     Export-ModuleMember -Function "Get-$value", "Set-$value"
 }

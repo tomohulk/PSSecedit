@@ -1,9 +1,5 @@
 Enum SeceditUserRights {
     SeNetworkLogonRight
-    SeBackupPrivilege
-    SeChangeNotifyPrivilege
-    SeSystemtimePrivilege
-    SeCreatePagefilePrivilege
 }
 
 Enum SeceditArea {
@@ -23,22 +19,38 @@ Class SeceditObject {
     SeceditObject([System.String]$Name, [SeceditArea]$Area) {
         $this.Name = $Name
         $this.Area = $Area
-        $this.Value = $this.GetValue($Name, $Area)
+        $this.Value = $this.GetValue()
     }
 
-    [System.IO.FileInfo]ExportSdb([SeceditArea]$Area) {
-        $path = "${env:Temp}\PSSecedit\PSSecedit_${Area}.inf"
-        Start-Process -FilePath secedit.exe -ArgumentList "/export /cfg $path /areas ${Area} /quiet" -Wait
+    [System.IO.FileInfo]ExportSdb() {
+        $path = "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf"
+        Start-Process -FilePath secedit.exe -ArgumentList "/export /cfg $path /areas $($this.Area) /quiet" -Wait
         return (Get-Item -Path $path)
     }
 
-    [System.String[]]GetValue([System.String]$Property, [SeceditArea]$Area) {
-        $content = Get-Content -Path $this.ExportSdb($Area)
-        return ((($content | Select-String $Property).Line.Split("=").Trim() | Select-Object -Last 1) -split "," | Foreach-Object { $_.Trim()})
+    [Void]ImportSdb() {
+        $path = "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf"
+        $content = Get-Content -Path $path
+        $formatedContent = $content[0..5]
+        $formatedContent += $content[6..($content.Length)].Replace("=", " = ")
+        Set-Content -Path $path -Value $formatedContent -Force
+        Start-Process -FilePath secedit.exe -ArgumentList "/configure /db hisecws.sdb /overwrite /cfg $path /areas $($this.Area) /quiet" -Wait
     }
 
-    [SeceditObject]SetValue([System.String]$Property, [System.String[]]$Value, [SeceditArea]$Area) {
-        $content = Get-Content -Path $this.ExportSdb($Area)
-        return ([SeceditObject]::new($Property, $Area))
+    [System.String[]]GetValue() {
+        $content = Get-IniContent -FilePath $this.ExportSdb()
+        return ($content["Privilege Rights"]["$($this.Name)"] -split ",")
+    }
+
+    [SeceditObject]SetValue([System.String[]]$PropertyValue) {
+        $content = Get-IniContent -FilePath $this.ExportSdb()
+        if ($PropertyValue.Count -gt 1) {
+            $PropertyValue = $PropertyValue -join ","
+        }
+        $content["Privilege Rights"]["$($this.Name)"] = $PropertyValue
+        Out-IniFile -FilePath "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf" -InputObject $content -Force
+        cp "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf" "${env:Temp}\PSSecedit\PSSecedit_$($this.Area)_modded.inf"
+        $this.ImportSdb()
+        return ([SeceditObject]::new($this.Name, $this.Area))
     }
 }
