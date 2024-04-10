@@ -1,8 +1,4 @@
-Enum SeceditUserRights {
-    SeNetworkLogonRight
-}
-
-Enum SeceditArea {
+Enum PSSeceditArea {
     FILESTORE
     GROUP_MGMT
     REGKEYS
@@ -11,12 +7,16 @@ Enum SeceditArea {
     USER_RIGHTS
 }
 
-Class SeceditObject {
+Class PSSeceditObject {
     [System.String]$Name
     [System.String[]]$Value
-    [Nullable[SeceditArea]]$Area
+    [Nullable[PSSeceditArea]]$Area
 
-    SeceditObject([System.String]$Name, [SeceditArea]$Area) {
+    PSSeceditObject([PSSeceditArea]$Area) {
+        $this.Area = $Area
+    }
+
+    PSSeceditObject([System.String]$Name, [PSSeceditArea]$Area) {
         $this.Name = $Name
         $this.Area = $Area
         $this.Value = $this.GetValue()
@@ -42,15 +42,14 @@ Class SeceditObject {
         return ($content["Privilege Rights"]["$($this.Name)"] -split ",")
     }
 
-    [SeceditObject]SetValue([System.String[]]$PropertyValue) {
+    [PSSeceditObject]SetValue([System.String[]]$PropertyValue) {
         $content = Get-IniContent -FilePath $this.ExportSdb()
         if ($PropertyValue.Count -gt 1) {
             $PropertyValue = $PropertyValue -join ","
         }
         $content["Privilege Rights"]["$($this.Name)"] = $PropertyValue
         Out-IniFile -FilePath "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf" -InputObject $content -Force
-        cp "${env:Temp}\PSSecedit\PSSecedit_$($this.Area).inf" "${env:Temp}\PSSecedit\PSSecedit_$($this.Area)_modded.inf"
         $this.ImportSdb()
-        return ([SeceditObject]::new($this.Name, $this.Area))
+        return ([PSSeceditObject]::new($this.Name, $this.Area))
     }
 }
